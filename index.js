@@ -6,9 +6,16 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
  const app= express()
 
+ const corsOptions = {
+  origin : ['http://localhost:5173', 'http://localhost:5174' ],
+  credentials : true,
+  optionSuccessStatus : 200,
+
+ }
+
  
 
- app.use(cors())
+ app.use(cors(corsOptions))
  app.use(express.json())
 
 
@@ -27,6 +34,17 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
+
+    // database collections
+    const productCollection = client.db('trueBeauty').collection('products')
+
+
+    // get all product data
+    app.get('/products', async(req,res)=>{
+      const result = await productCollection.find().toArray()
+
+      res.send(result)
+    })
 
    //  await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
