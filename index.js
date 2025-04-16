@@ -37,6 +37,17 @@ async function run() {
 
     // database collections
     const productCollection = client.db('trueBeauty').collection('products')
+    const orderCollection = client.db('trueBeauty').collection('orders')
+
+
+    // save a product in database
+    app.post('/products', async(req,res)=>{
+      const productData = req.body
+      
+      const result = await productCollection.insertOne(productData)
+      res.send(result)
+    })
+
 
 
     // get all product data
@@ -45,6 +56,59 @@ async function run() {
 
       res.send(result)
     })
+
+    // get all single product data
+
+    app.get('/products/:id', async(req,res)=>{
+      const id= req.params.id
+      const query = {_id: new ObjectId (id)}
+      console.log(query)
+      const result = await productCollection.findOne(query)
+      res.send(result)
+    })
+
+    // save a order in database
+    app.post('/order', async(req,res)=>{
+      const orderData = req.body
+      
+      const result = await orderCollection.insertOne(orderData)
+      res.send(result)
+    })
+
+    // get all product data save by admin
+    app.get('/productsData/:email', async(req,res)=>{
+      const email = req.params.email
+      const query = {adminEmail : email}
+      const result =await productCollection.find(query).toArray()
+      res.send(result)
+    })
+    // delete a product data from db
+    app.delete('/products/:id', async(req,res)=>{
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      
+      const result =await productCollection.deleteOne(query)
+      res.send(result)
+    })
+    //  update a product data 
+    app.put('/products/:id', async(req,res)=>{
+      const id = req.params.id
+      const productData = req.body
+      const query = {_id : new ObjectId(id)}
+      const options = {upsert: true}
+      const updateDoc={
+        $set:{
+          ...productData,
+        },
+      }
+      const result = await productCollection.updateOne(query,updateDoc,options)
+      res.send(result)
+
+    })
+
+
+
+
 
    //  await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
