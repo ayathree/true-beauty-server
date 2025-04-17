@@ -67,14 +67,7 @@ async function run() {
       res.send(result)
     })
 
-    // save a order in database
-    app.post('/order', async(req,res)=>{
-      const orderData = req.body
-      
-      const result = await orderCollection.insertOne(orderData)
-      res.send(result)
-    })
-
+    
     // get all product data save by admin
     app.get('/productsData/:email', async(req,res)=>{
       const email = req.params.email
@@ -103,9 +96,33 @@ async function run() {
       }
       const result = await productCollection.updateOne(query,updateDoc,options)
       res.send(result)
-
+      
+    })
+    
+    
+    // save a order in database
+    app.post('/order', async(req,res)=>{
+      const orderData = req.body
+      
+      const result = await orderCollection.insertOne(orderData)
+      res.send(result)
     })
 
+    // get all order of a user from db
+    app.get('/order/:email', async(req,res)=>{
+      const email = req.params.email
+      const query = {customerEmail : email}
+      const result =await orderCollection.find(query).toArray()
+      res.send(result)
+    })
+
+    // get all order of a user for a admin from db
+    app.get('/orderAdmin/:email', async(req,res)=>{
+      const email = req.params.email
+      const query = {ownerEmail : email}
+      const result =await orderCollection.find(query).toArray()
+      res.send(result)
+    })
 
 
 
