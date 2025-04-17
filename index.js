@@ -123,6 +123,52 @@ async function run() {
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
+    // get all single order data
+
+    app.get('/orderData/:id', async(req,res)=>{
+      const id= req.params.id
+      const query = {_id: new ObjectId (id)}
+      console.log(query)
+      const result = await orderCollection.findOne(query)
+      res.send(result)
+    })
+    //  update a order data 
+    app.patch('/orderData/:id', async(req,res)=>{
+      const id = req.params.id
+      const { customerName, customerNumber, customerAddress } = req.body;
+      const query = {_id: new ObjectId(id)}
+      const updateDoc ={
+        $set: {
+          customerName: customerName,
+          customerNumber: customerNumber,
+          customerAddress: customerAddress
+        }
+      }
+      const result = await orderCollection.updateOne(query, updateDoc)
+      res.send(result)
+      
+    })
+
+    // delete a order data from db
+    app.delete('/orderData/:id', async(req,res)=>{
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      
+      const result =await orderCollection.deleteOne(query)
+      res.send(result)
+    })
+
+    // update status
+    app.patch('/order/:id', async (req,res)=>{
+      const id=req.params.id
+      const status = req.body
+      const query = {_id: new ObjectId(id)}
+      const updateDoc ={
+        $set: status,
+      }
+      const result = await orderCollection.updateOne(query, updateDoc)
+      res.send(result)
+    })
 
 
 
