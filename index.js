@@ -1,5 +1,7 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
  require('dotenv').config();
  const port =process.env.PORT || 5000
@@ -17,6 +19,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
  app.use(cors(corsOptions))
  app.use(express.json())
+ app.use(cookieParser())
 
 
  
@@ -39,9 +42,49 @@ async function run() {
     const productCollection = client.db('trueBeauty').collection('products')
     const orderCollection = client.db('trueBeauty').collection('orders')
 
+    // jwt generate
+    app.post('/jwt', async(req,res)=>{
+      const user = req.body
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn : '365d',
+      })
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production'?'none':'strict',
+      }).send({success: true})
+    })
+    // clear token by logout
+    app.get('/logout', (req,res)=>{
+      res.clearCookie('token', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production'?'none':'strict',
+        maxAge:0,
+      }).send({success: true})
+    })
+
+    // verify jwt middleware
+    const verifyToken = (req,res,next)=>{
+      const token = req.cookies?.token
+      if(!token) return res.status(401).send({message:'unauthorized access'})
+        if(token){
+          jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+            if(err){
+              console.log(err)
+              return res.status(401).send({message:"unauthorized access"})
+            }
+            console.log(decoded)
+            req.user=decoded
+            next()
+          })
+        }
+    }
+
+
 
     // save a product in database
-    app.post('/products', async(req,res)=>{
+    app.post('/products',verifyToken, async(req,res)=>{
       const productData = req.body
       
       const result = await productCollection.insertOne(productData)
@@ -69,8 +112,12 @@ async function run() {
 
     
     // get all product data save by admin
-    app.get('/productsData/:email', async(req,res)=>{
+    app.get('/productsData/:email', verifyToken, async(req,res)=>{
+      const tokenEmail = req.user.email
       const email = req.params.email
+      if(tokenEmail!==email){
+        return res.status(403).send({message:"forbidden access"})
+      }
       const query = {adminEmail : email}
       const result =await productCollection.find(query).toArray()
       res.send(result)
@@ -84,7 +131,7 @@ async function run() {
       res.send(result)
     })
     //  update a product data 
-    app.put('/products/:id', async(req,res)=>{
+    app.put('/products/:id',verifyToken, async(req,res)=>{
       const id = req.params.id
       const productData = req.body
       const query = {_id : new ObjectId(id)}
@@ -103,29 +150,46 @@ async function run() {
     // save a order in database
     app.post('/order', async(req,res)=>{
       const orderData = req.body
+      // check if the order is duplicate
+      const query={
+        customerEmail:orderData.customerEmail,
+        orderedProductId:orderData.orderedProductId
+      }
+      const alreadyOrdered=await orderCollection.findOne(query)
+      if(alreadyOrdered){
+        return res.status(400).send('You have already ordered this product')
+      }
       
       const result = await orderCollection.insertOne(orderData)
       res.send(result)
     })
 
     // get all order of a user from db
-    app.get('/order/:email', async(req,res)=>{
+    app.get('/order/:email',verifyToken, async(req,res)=>{
+      const tokenEmail = req.user.email
       const email = req.params.email
+       if(tokenEmail!==email){
+        return res.status(403).send({message:"forbidden access"})
+      }
       const query = {customerEmail : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
 
     // get all order of a user for a admin from db
-    app.get('/orderAdmin/:email', async(req,res)=>{
+    app.get('/orderAdmin/:email', verifyToken, async(req,res)=>{
+       const tokenEmail = req.user.email
       const email = req.params.email
+      if(tokenEmail!==email){
+        return res.status(403).send({message:"forbidden access"})
+      }
       const query = {ownerEmail : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
     // get all single order data
 
-    app.get('/orderData/:id', async(req,res)=>{
+    app.get('/orderData/:id', verifyToken, async(req,res)=>{
       const id= req.params.id
       const query = {_id: new ObjectId (id)}
       console.log(query)
@@ -133,7 +197,7 @@ async function run() {
       res.send(result)
     })
     //  update a order data 
-    app.patch('/orderData/:id', async(req,res)=>{
+    app.patch('/orderData/:id', verifyToken, async(req,res)=>{
       const id = req.params.id
       const { customerName, customerNumber, customerAddress } = req.body;
       const query = {_id: new ObjectId(id)}
@@ -159,7 +223,7 @@ async function run() {
     })
 
     // update status
-    app.patch('/order/:id', async (req,res)=>{
+    app.patch('/order/:id', verifyToken, async (req,res)=>{
       const id=req.params.id
       const status = req.body
       const query = {_id: new ObjectId(id)}
