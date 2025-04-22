@@ -234,6 +234,28 @@ async function run() {
       res.send(result)
     })
 
+    // get all product data for pagination,filter
+    app.get('/allData', async(req,res)=>{
+      const size = parseInt(req.query.size)
+      const page = parseInt(req.query.page) - 1
+      const filter = req.query.filter
+      console.log(size,page);
+      let query={}
+      if (filter) query={category:filter}
+      const result = await productCollection.find(query).skip(page * size).limit(size).toArray()
+
+      res.send(result)
+    })
+    // get all product data count
+    app.get('/dataCount', async(req,res)=>{
+      const filter = req.query.filter
+      let query={}
+      if (filter) query={category:filter}
+      const count = await productCollection.countDocuments(query)
+
+      res.send({count})
+    })
+
 
 
 
