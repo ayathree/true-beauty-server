@@ -9,7 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
  const app= express()
 
  const corsOptions = {
-  origin : ['http://localhost:5173', 'http://localhost:5174' ],
+  origin : ['http://localhost:5173', 'http://localhost:5174' ,'https://true-beauty-2d58d.firebaseapp.com' ],
   credentials : true,
   optionSuccessStatus : 200,
 
@@ -86,6 +86,10 @@ async function run() {
     // save a product in database
     app.post('/products',verifyToken, async(req,res)=>{
       const productData = req.body
+       // Convert price to number (float)
+    if (productData.price) {
+      productData.price = parseFloat(productData.price);
+    }
       
       const result = await productCollection.insertOne(productData)
       res.send(result)
@@ -239,18 +243,45 @@ async function run() {
       const size = parseInt(req.query.size)
       const page = parseInt(req.query.page) - 1
       const filter = req.query.filter
+      const filterBrand = req.query.filterBrand
+      const sort = req.query.sort
+      const sortPrice = req.query.sortPrice
+      const search = req.query.search
       console.log(size,page);
-      let query={}
-      if (filter) query={category:filter}
-      const result = await productCollection.find(query).skip(page * size).limit(size).toArray()
+      let query={
+        productName: {$regex: search, $options: 'i'}
+        
+
+      }
+      if (filter) query.category = filter
+      if(filterBrand) query.brand = filterBrand
+      let sortOptions = {};
+    
+    // Handle both sorting criteria
+    if (sortPrice === 'low' || sortPrice === 'high') {
+      sortOptions.price = sortPrice === 'low' ? 1 : -1;
+    }
+    if (sort === 'asc' || sort === 'dsc') {
+      sortOptions.deadline = sort === 'asc' ? 1 : -1;
+    }
+    
+      const result = await productCollection.find(query).sort(sortOptions).skip(page * size).limit(size).toArray()
 
       res.send(result)
     })
     // get all product data count
     app.get('/dataCount', async(req,res)=>{
       const filter = req.query.filter
-      let query={}
-      if (filter) query={category:filter}
+      const filterBrand = req.query.filterBrand
+      const search = req.query.search
+
+      let query={
+        productName: {$regex: search, $options: 'i'}
+        
+
+      }
+      if (filter) query.category = filter
+      if(filterBrand) query.brand = filterBrand
       const count = await productCollection.countDocuments(query)
 
       res.send({count})
