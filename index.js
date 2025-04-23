@@ -9,7 +9,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
  const app= express()
 
  const corsOptions = {
-  origin : ['http://localhost:5173', 'http://localhost:5174' ,'https://true-beauty-2d58d.firebaseapp.com' ],
+  origin : ['http://localhost:5173', 'http://localhost:5174' ,'https://true-beauty-2d58d.web.app' ],
   credentials : true,
   optionSuccessStatus : 200,
 
