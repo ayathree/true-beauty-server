@@ -165,6 +165,13 @@ async function run() {
       }
       
       const result = await orderCollection.insertOne(orderData)
+      // update a order count in db
+      const updateDoc={
+        $inc:{totalOrder: 1}
+      }
+      const orderQuery={_id:new ObjectId(orderData.orderedProductId)}
+      const updateOrderCount = await productCollection.updateOne(orderQuery, updateDoc) 
+      console.log(updateOrderCount);
       res.send(result)
     })
 
