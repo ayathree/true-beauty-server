@@ -322,6 +322,14 @@ async function run() {
       const result =await cartCollection.find(query).toArray()
       res.send(result)
     })
+    // delete a order data from db
+    app.delete('/cartData/:id', async(req,res)=>{
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      
+      const result =await cartCollection.deleteOne(query)
+      res.send(result)
+    })
 
 
 
