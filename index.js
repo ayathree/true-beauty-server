@@ -322,7 +322,7 @@ async function run() {
       const result =await cartCollection.find(query).toArray()
       res.send(result)
     })
-    // delete a order data from db
+    // delete a cart data from db
     app.delete('/cartData/:id', async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
@@ -330,6 +330,51 @@ async function run() {
       const result =await cartCollection.deleteOne(query)
       res.send(result)
     })
+     // get all single cart data
+
+     app.get('/cartData/:id', verifyToken, async(req,res)=>{
+      const id= req.params.id
+      const query = {_id: new ObjectId (id)}
+      console.log(query)
+      const result = await cartCollection.findOne(query)
+      res.send(result)
+    })
+    // PATCH /cartData/:id - Update cart item quantity
+app.patch('/cartData/:id', verifyToken, async (req, res) => {
+  try {
+      const id = req.params.id;
+      const { quantity } = req.body;
+      
+      // Validate input
+      if (!quantity || isNaN(quantity)) {
+          return res.status(400).json({ error: 'Valid quantity is required' });
+      }
+
+      const result = await cartCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { quantity: parseInt(quantity), updatedAt: new Date() } }
+      );
+
+      if (result.matchedCount === 0) {
+          return res.status(404).json({ error: 'Cart item not found' });
+      }
+
+      res.json({ success: true });
+  } catch (error) {
+      res.status(500).json({ error: 'Internal server error' });
+  }
+});
+// get all cart data for checkout of a user from db
+app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
+  const tokenEmail = req.user.email
+  const email = req.params.email
+   if(tokenEmail!==email){
+    return res.status(403).send({message:"forbidden access"})
+  }
+  const query = {saverEmail : email}
+  const result =await cartCollection.find(query).toArray()
+  res.send(result)
+})
 
 
 
