@@ -41,6 +41,7 @@ async function run() {
     // database collections
     const productCollection = client.db('trueBeauty').collection('products')
     const orderCollection = client.db('trueBeauty').collection('orders')
+    const cartCollection = client.db('trueBeauty').collection('carts')
 
     // jwt generate
     app.post('/jwt', async(req,res)=>{
@@ -292,6 +293,34 @@ async function run() {
       const count = await productCollection.countDocuments(query)
 
       res.send({count})
+    })
+
+    // added a cart product in database
+    app.post('/cart',verifyToken, async(req,res)=>{
+      const cartData = req.body
+      // check if the order is duplicate
+      const query={
+        saverEmail:cartData.saverEmail,
+        savedProductId:cartData.savedProductId
+      }
+      const alreadySaved=await cartCollection.findOne(query)
+      if(alreadySaved){
+        return res.status(400).send('You have already added this product')
+      }
+      
+      const result = await cartCollection.insertOne(cartData) 
+      res.send(result)
+    })
+    // get all cart product of a user from db
+    app.get('/cart/:email',verifyToken, async(req,res)=>{
+      const tokenEmail = req.user.email
+      const email = req.params.email
+       if(tokenEmail!==email){
+        return res.status(403).send({message:"forbidden access"})
+      }
+      const query = {saverEmail : email}
+      const result =await cartCollection.find(query).toArray()
+      res.send(result)
     })
 
 
