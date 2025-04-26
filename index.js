@@ -154,11 +154,12 @@ async function run() {
     
     // save a order in database
     app.post('/order', async(req,res)=>{
+      const id = req.params.id
       const orderData = req.body
       // check if the order is duplicate
       const query={
-        customerEmail:orderData.customerEmail,
-        orderedProductId:orderData.orderedProductId
+        _id : new ObjectId(id),
+       'customerInfo.email': orderData.customerInfo.email,   
       }
       const alreadyOrdered=await orderCollection.findOne(query)
       if(alreadyOrdered){
@@ -166,13 +167,27 @@ async function run() {
       }
       
       const result = await orderCollection.insertOne(orderData)
-      // update a order count in db
-      const updateDoc={
-        $inc:{totalOrder: 1}
-      }
-      const orderQuery={_id:new ObjectId(orderData.orderedProductId)}
-      const updateOrderCount = await productCollection.updateOne(orderQuery, updateDoc) 
-      console.log(updateOrderCount);
+     // Update order count for each product
+    await Promise.all(
+      orderData.products.map(product => 
+        productCollection.updateOne(
+          { _id: new ObjectId(product.id) }, // Fix: Single ID per update
+          { $inc: { totalOrder: 1 } }
+        )
+      )
+    );
+
+    // 6. Remove ordered items from cart
+    const productIds = orderData.products.map(p => p.id);
+    await cartCollection.deleteMany({
+      'savedProductId': { $in: productIds },
+      'saverEmail': orderData.customerInfo.email
+    });
+      res.send(result)
+    })
+    app.get('/order', async(req,res)=>{
+      const result = await orderCollection.find().toArray()
+
       res.send(result)
     })
 
@@ -183,7 +198,7 @@ async function run() {
        if(tokenEmail!==email){
         return res.status(403).send({message:"forbidden access"})
       }
-      const query = {customerEmail : email}
+      const query = {'customerInfo.email' : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
@@ -195,13 +210,13 @@ async function run() {
       if(tokenEmail!==email){
         return res.status(403).send({message:"forbidden access"})
       }
-      const query = {ownerEmail : email}
+      const query = { 'products.owner' : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
     // get all single order data
 
-    app.get('/orderData/:id', verifyToken, async(req,res)=>{
+    app.get('/orderData/:id',  async(req,res)=>{
       const id= req.params.id
       const query = {_id: new ObjectId (id)}
       console.log(query)
@@ -209,15 +224,17 @@ async function run() {
       res.send(result)
     })
     //  update a order data 
-    app.patch('/orderData/:id', verifyToken, async(req,res)=>{
+    app.patch('/orderData/:id', async(req,res)=>{
       const id = req.params.id
-      const { customerName, customerNumber, customerAddress } = req.body;
+      const { name, phone, address, city, zipCode } = req.body;
       const query = {_id: new ObjectId(id)}
       const updateDoc ={
         $set: {
-          customerName: customerName,
-          customerNumber: customerNumber,
-          customerAddress: customerAddress
+         'customerInfo.name': name,
+        'customerInfo.phone': phone,
+        'customerInfo.address': address,
+        'customerInfo.city': city,
+        'customerInfo.zipCode': zipCode,
         }
       }
       const result = await orderCollection.updateOne(query, updateDoc)
@@ -237,12 +254,25 @@ async function run() {
     // update status
     app.patch('/order/:id', verifyToken, async (req,res)=>{
       const id=req.params.id
-      const status = req.body
+      const { status } = req.body
       const query = {_id: new ObjectId(id)}
       const updateDoc ={
-        $set: status,
+        $set: {
+        'orderDetails.status': status,
+        
+      }
       }
       const result = await orderCollection.updateOne(query, updateDoc)
+    //   const order = await orderCollection.findOne(query);
+    //   // 5. Delete cart items when status changes to specific values
+    // if (['Shipped', 'Delivered'].includes(status)) {
+    //   const productIds = order.products.map(p => p.id);
+      
+    //   await cartCollection.deleteMany({
+    //     'savedProductId': { $in: productIds },
+    //     'saverEmail': order.customerInfo.email
+    //   });
+    // }
       res.send(result)
     })
 
