@@ -42,6 +42,7 @@ async function run() {
     const productCollection = client.db('trueBeauty').collection('products')
     const orderCollection = client.db('trueBeauty').collection('orders')
     const cartCollection = client.db('trueBeauty').collection('carts')
+    const wishCollection = client.db('trueBeauty').collection('wishes')
 
     // jwt generate
     app.post('/jwt', async(req,res)=>{
@@ -405,6 +406,63 @@ app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
   const result =await cartCollection.find(query).toArray()
   res.send(result)
 })
+// add a wish listed product in database
+    app.post('/wish',verifyToken, async(req,res)=>{
+      const wishData = req.body
+      // check if the order is duplicate
+      const query={
+        listerEmail:wishData.listerEmail,
+        listedProductId:wishData.listedProductId
+      }
+      const alreadyListed=await wishCollection.findOne(query)
+      if(alreadyListed){
+        return res.status(400).send('You have already added this product')
+      }
+      
+      const result = await wishCollection.insertOne(wishData) 
+      res.send(result)
+    })
+    // add a listed product in cart
+    app.post('/wishData', verifyToken,async (req, res) => {
+
+      try {
+        // 1. Add to cart
+        const cartItem = {
+          ...req.body,
+          addedAt: new Date()
+        };
+        const result = await cartCollection.insertOne(cartItem);
+    
+        // 2. Delete from wishlist (simple version)
+        await wishCollection.deleteOne({
+          _id: new ObjectId(req.body.savedProductId), // Assume frontend sends wishItemId
+          listerEmail: req.body.saverEmail // Matches cart item's saverEmail
+        });
+    
+        res.send(result);
+      } catch (error) {
+        res.status(500).send('Error');
+      }
+    });
+    // get all wish listed product of a user from db
+    app.get('/wish/:email',verifyToken, async(req,res)=>{
+      const tokenEmail = req.user.email
+      const email = req.params.email
+       if(tokenEmail!==email){
+        return res.status(403).send({message:"forbidden access"})
+      }
+      const query = {listerEmail : email}
+      const result =await wishCollection.find(query).toArray()
+      res.send(result)
+    })
+    // delete a wishListed  data from db
+    app.delete('/wishData/:id', async(req,res)=>{
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      
+      const result =await wishCollection.deleteOne(query)
+      res.send(result)
+    })
 
 
 
