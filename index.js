@@ -39,6 +39,7 @@ async function run() {
   try {
 
     // database collections
+    const userCollection = client.db('trueBeauty').collection('users')
     const productCollection = client.db('trueBeauty').collection('products')
     const orderCollection = client.db('trueBeauty').collection('orders')
     const cartCollection = client.db('trueBeauty').collection('carts')
@@ -82,6 +83,88 @@ async function run() {
           })
         }
     }
+
+    // Add admin verification middleware
+    // const verifyAdmin = async (req, res, next) => {
+    //   const requester = await userCollection.findOne({ _id: req.decoded.userId });
+    //   if (!requester || requester.role !== 'admin') {
+    //     return res.status(403).json({ message: 'Admin access required' });
+    //   }
+    //   next();
+    // };
+
+
+    // save a user in db
+    app.post('/users', async (req, res) => {
+      const user = req.body;
+      
+      // Check if user already exists
+      const query = { email: user.email };
+      const existingUser = await userCollection.findOne(query);
+      
+      if (existingUser) {
+        return res.send({ message: 'user already exists', insertedId: null });
+      }
+    
+      // Add role field with default value 'user'
+      const userWithRole = {
+        ...user,
+        role: 'user' // Default role for new users
+      };
+    
+      // Insert the new user with role
+      const result = await userCollection.insertOne(userWithRole);
+      res.send(result);
+    });
+    // get the user data
+    app.get('/users',verifyToken, async(req,res)=>{
+     
+      const result = await userCollection.find().toArray();
+      res.send(result) 
+    });
+    // make an user an admin
+     app.patch('/users/admin/:id', verifyToken, async (req,res)=>{
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id)};
+      const updateDoc = {
+        $set:{
+          role: 'admin'
+        }
+      }
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.send(result)
+    }) 
+    // admin route
+    app.get('/users/admin/:email', verifyToken, async (req, res) => {
+      try {
+        // 1. Get the requesting user's email from the verified token
+        const requestingUserEmail = req.user.email; // From verifyToken middleware
+        
+        // 2. Get the target email from params
+        const targetEmail = req.params.email;
+    
+        // 3. Find the requesting user in database
+        const requestingUser = await userCollection.findOne({ email: requestingUserEmail });
+        
+        // 4. Authorization check - only allow if:
+        //    a) User is checking their own status, OR
+        //    b) User is an admin
+        if (requestingUserEmail !== targetEmail && requestingUser?.role !== 'admin') {
+          return res.status(403).json({ message: 'Unauthorized access' });
+        }
+    
+        // 5. Proceed with the admin check
+        const targetUser = await userCollection.findOne({ email: targetEmail });
+        res.json({ 
+          admin: targetUser?.role === 'admin',
+          email: targetEmail
+        });
+    
+      } catch (err) {
+        console.error('Admin check error:', err);
+        res.status(500).json({ message: 'Server error' });
+      }
+    });
 
 
 
