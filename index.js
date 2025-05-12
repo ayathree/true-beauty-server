@@ -550,7 +550,7 @@ app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
     // add a review in database
     app.post('/review',verifyToken, async(req,res)=>{
       const reviewData = req.body
-      // check if the order is duplicate
+      // check if the review is duplicate
       const query={
         reviewerEmail:reviewData.reviewerEmail,
         reviewedProductId:reviewData.reviewedProductId
@@ -563,7 +563,24 @@ app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
       const result = await reviewCollection.insertOne(reviewData) 
       res.send(result)
     })
-
+   
+    // Get all reviews for a specific product by product ID
+app.get('/products/:productId/reviews', async (req, res) => {
+  try {
+    const productId = req.params.productId;
+    
+    // Find all reviews where reviewedProductId matches the product's _id
+    const reviews = await reviewCollection.find({
+      reviewedProductId: productId  // This matches the string ID from URL with reviewedProductId
+    }).toArray();
+    
+    res.send(reviews);
+    
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Server error');
+  }
+});
 
 
 
