@@ -44,6 +44,7 @@ async function run() {
     const orderCollection = client.db('trueBeauty').collection('orders')
     const cartCollection = client.db('trueBeauty').collection('carts')
     const wishCollection = client.db('trueBeauty').collection('wishes')
+    const reviewCollection = client.db('trueBeauty').collection('reviews')
 
     // jwt generate
     app.post('/jwt', async(req,res)=>{
@@ -544,6 +545,22 @@ app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
       const query = {_id : new ObjectId(id)}
       
       const result =await wishCollection.deleteOne(query)
+      res.send(result)
+    })
+    // add a review in database
+    app.post('/review',verifyToken, async(req,res)=>{
+      const reviewData = req.body
+      // check if the order is duplicate
+      const query={
+        reviewerEmail:reviewData.reviewerEmail,
+        reviewedProductId:reviewData.reviewedProductId
+      }
+      const alreadyReviewed=await reviewCollection.findOne(query)
+      if(alreadyReviewed){
+        return res.status(400).send('You have already added this product')
+      }
+      
+      const result = await reviewCollection.insertOne(reviewData) 
       res.send(result)
     })
 
