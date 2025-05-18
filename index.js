@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser')
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
  require('dotenv').config();
+ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY)
  const port =process.env.PORT || 5000
 
  const app= express()
@@ -45,6 +46,7 @@ async function run() {
     const cartCollection = client.db('trueBeauty').collection('carts')
     const wishCollection = client.db('trueBeauty').collection('wishes')
     const reviewCollection = client.db('trueBeauty').collection('reviews')
+    const paymentCollection = client.db('trueBeauty').collection('payments')
 
     // jwt generate
     app.post('/jwt', async(req,res)=>{
@@ -581,6 +583,65 @@ app.get('/products/:productId/reviews', async (req, res) => {
     res.status(500).send('Server error');
   }
 });
+
+// payment intent
+app.post('/create-payment-intent',async(req,res)=>{
+  const{price}=req.body;
+  const amount = parseInt(price*100);
+  console.log(amount);
+  const paymentIntent = await stripe.paymentIntents.create({
+    amount: amount,
+    currency: 'usd',
+    payment_method_types: ['card']
+  });
+  res.send({
+    clientSecret: paymentIntent.client_secret
+  })
+})
+// save payment
+
+app.post('/payments', async(req,res)=>{
+  const payment=req.body
+  const paymentResult=await paymentCollection.insertOne(payment)
+  console.log(payment);
+   
+  res.send(paymentResult)
+})
+ // get all payment data of a user for a admin from db
+    app.get('/payData/:email', verifyToken, async(req,res)=>{
+       const tokenEmail = req.user.email
+      const email = req.params.email
+      if(tokenEmail!==email){
+        return res.status(403).send({message:"forbidden access"})
+      }
+     // Find payments where user is in the admin array
+    const result = await paymentCollection.find({ 
+      admin: { $in: [email] } 
+    }).toArray();
+    
+    res.send(result);
+    })
+
+// delete payment data
+app.delete('/payData/:id', async(req,res)=>{
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      
+      const result =await paymentCollection.deleteOne(query)
+      res.send(result)
+    })
+
+    // get all  payment data for a user
+    app.get('/paymentData/:email',verifyToken, async(req,res)=>{
+      const tokenEmail = req.user.email
+      const email = req.params.email
+       if(tokenEmail!==email){
+        return res.status(403).send({message:"forbidden access"})
+      }
+      const query = {email : email}
+      const result =await paymentCollection.find(query).toArray()
+      res.send(result)
+    })
 
 
 
