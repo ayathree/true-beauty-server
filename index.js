@@ -47,6 +47,8 @@ async function run() {
     const wishCollection = client.db('trueBeauty').collection('wishes')
     const reviewCollection = client.db('trueBeauty').collection('reviews')
     const paymentCollection = client.db('trueBeauty').collection('payments')
+    const contactCollection = client.db('trueBeauty').collection('contacts')
+
 
     // jwt generate
     app.post('/jwt', async(req,res)=>{
@@ -650,6 +652,28 @@ app.delete('/payData/:id', async(req,res)=>{
       }
       const query = {email : email}
       const result =await paymentCollection.find(query).toArray()
+      res.send(result)
+    })
+    // contact us add
+ app.post('/contacts', async (req, res) => {
+      const contact = req.body;
+      const result = await contactCollection.insertOne(contact);
+      res.send(result);
+    });
+
+    // get all contact data
+    app.get('/contacts', verifyToken, async(req,res)=>{
+      const result = await contactCollection.find().toArray()
+
+      res.send(result)
+    })
+
+     // delete a contact data from db
+    app.delete('/contacts/:id', verifyToken, async(req,res)=>{
+      const id = req.params.id
+      const query = {_id : new ObjectId(id)}
+      
+      const result =await contactCollection.deleteOne(query)
       res.send(result)
     })
 
