@@ -56,11 +56,13 @@ async function run() {
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
         expiresIn : '365d',
       })
-      res.cookie('token', token, {
+      res
+      .cookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production'?'none':'strict',
-      }).send({success: true})
+      })
+      .send({success: true})
     })
     // clear token by logout
     app.get('/logout', (req,res)=>{
