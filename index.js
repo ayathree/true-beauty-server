@@ -203,11 +203,11 @@ async function run() {
       const result = await productCollection.findOne(query)
       res.send(result)
     })
-    // get all product data by brand name
-    app.get('/productBrand/:brand', async(req,res)=>{
-      const brand=decodeURIComponent (req.params.brand)
+    // get all product data by category name
+    app.get('/productBrand/:category', async(req,res)=>{
+      const category=decodeURIComponent (req.params.category)
      const query = { 
-      brand: { $regex: new RegExp(`^${brand}$`, 'i') }
+     category: { $regex: new RegExp(`^${category}$`, 'i') }
     };
       console.log(query)
       const result = await productCollection.find(query).toArray()
