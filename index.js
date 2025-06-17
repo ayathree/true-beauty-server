@@ -22,6 +22,23 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
  app.use(express.json())
  app.use(cookieParser())
 
+ // verifyToken middleware
+//  const verifyToken=(req,res,next)=>{
+//     const token = req.cookies?.token
+//          if(!token) return res.status(401).send({message:'unauthorized access'})
+//            if(token){
+//              jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+//                if(err){
+//                  console.log(err)
+//                  return res.status(401).send({message:"unauthorized access"})
+//                }
+//                console.log(decoded)
+//                req.user=decoded
+//                next()
+//              })
+//            }
+//  }
+
 
  
 
@@ -50,46 +67,46 @@ async function run() {
     const contactCollection = client.db('trueBeauty').collection('contacts')
 
 
-    // jwt generate
-    app.post('/jwt', async(req,res)=>{
-      const user = req.body
-      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn : '365d',
-      })
-      res
-      .cookie('token', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production'?'none':'strict',
-      })
-      .send({success: true})
-    })
-    // clear token by logout
-    app.get('/logout', (req,res)=>{
-      res.clearCookie('token', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production'?'none':'strict',
-        maxAge:0,
-      }).send({success: true})
-    })
+    
+        // jwt token
+        // app.post('/jwt', async(req,res)=>{
+        //   const user = req.body
+        //   const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{
+        //     expiresIn:'365d'
+        //   })
+        //   res.cookie('token', token,{
+        //     httpOnly: true,
+        //     secure: process.env.NODE_ENV === 'production',
+        //     sameSite:process.env.NODE_ENV === 'production'?'none':'strict',
+        //   }).send({success:true})
+        // })
+    
+        // clear cookie
+        //  app.get('/logout', async(req,res)=>{
+        //   res.clearCookie('token', {
+        //     httpOnly: true,
+        //     secure: process.env.NODE_ENV === 'production',
+        //     sameSite: process.env.NODE_ENV === 'production'?'none':'strict',
+        //     maxAge:0,
+        //   }).send({success: true})
+        // })
 
-    // verify jwt middleware
-    const verifyToken = (req,res,next)=>{
-      const token = req.cookies?.token
-      if(!token) return res.status(401).send({message:'unauthorized access'})
-        if(token){
-          jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
-            if(err){
-              console.log(err)
-              return res.status(401).send({message:"unauthorized access"})
-            }
-            console.log(decoded)
-            req.user=decoded
-            next()
-          })
-        }
-    }
+    // // verify jwt middleware
+    // const verifyToken = (req,res,next)=>{
+    //   const token = req.cookies?.token
+    //   if(!token) return res.status(401).send({message:'unauthorized access'})
+    //     if(token){
+    //       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+    //         if(err){
+    //           console.log(err)
+    //           return res.status(401).send({message:"unauthorized access"})
+    //         }
+    //         console.log(decoded)
+    //         req.user=decoded
+    //         next()
+    //       })
+    //     }
+    // }
 
     // Add admin verification middleware
     // const verifyAdmin = async (req, res, next) => {
@@ -102,35 +119,47 @@ async function run() {
 
 
     // save a user in db
-    app.post('/users', async (req, res) => {
-      const user = req.body;
-      
-      // Check if user already exists
-      const query = { email: user.email };
-      const existingUser = await userCollection.findOne(query);
-      
-      if (existingUser) {
-        return res.send({ message: 'user already exists', insertedId: null });
-      }
-    
-      // Add role field with default value 'user'
-      const userWithRole = {
-        ...user,
-        role: 'user' // Default role for new users
-      };
-    
-      // Insert the new user with role
-      const result = await userCollection.insertOne(userWithRole);
-      res.send(result);
+   app.post('/users', async (req, res) => {
+  const user = req.body;
+  
+  // Check by email OR uid if available
+  const query = { 
+    $or: [
+      { email: user.email },
+      ...(user.uid ? [{ uid: user.uid }] : [])
+    ]
+  };
+
+  const existingUser = await userCollection.findOne(query);
+  
+  if (existingUser) {
+    // Update last login but preserve role
+    await userCollection.updateOne(
+      { _id: existingUser._id },
+      { $set: { lastLogin: new Date() } }
+    );
+    return res.send({ 
+      message: 'user exists', 
+      user: existingUser 
     });
-    // get the user data
-    app.get('/users',verifyToken, async(req,res)=>{
-     
-      const result = await userCollection.find().toArray();
-      res.send(result) 
-    });
+  }
+
+  // New user with default role
+  const userWithDefaults = {
+    ...user,
+    role: 'user',
+    createdAt: new Date(),
+    lastLogin: new Date()
+  };
+
+  const result = await userCollection.insertOne(userWithDefaults);
+  res.send({
+    message: 'new user created',
+    user: { ...userWithDefaults, _id: result.insertedId }
+  });
+});
     // make an user an admin
-     app.patch('/users/admin/:id', verifyToken, async (req,res)=>{
+     app.patch('/users/admin/:id', async (req,res)=>{
       const id = req.params.id;
       const filter = {_id: new ObjectId(id)};
       const updateDoc = {
@@ -141,42 +170,60 @@ async function run() {
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result)
     }) 
-    // admin route
-    app.get('/users/admin/:email', verifyToken, async (req, res) => {
-      try {
-        // 1. Get the requesting user's email from the verified token
-        const requestingUserEmail = req.user.email; // From verifyToken middleware
+    // // admin route
+    // app.get('/users/admin/:email', verifyToken, async (req, res) => {
+    //   try {
+    //     // 1. Get the requesting user's email from the verified token
+    //     const requestingUserEmail = req.user.email; // From verifyToken middleware
         
-        // 2. Get the target email from params
-        const targetEmail = req.params.email;
+    //     // 2. Get the target email from params
+    //     const targetEmail = req.params.email;
     
-        // 3. Find the requesting user in database
-        const requestingUser = await userCollection.findOne({ email: requestingUserEmail });
+    //     // 3. Find the requesting user in database
+    //     const requestingUser = await userCollection.findOne({ email: requestingUserEmail });
         
-        // 4. Authorization check - only allow if:
-        //    a) User is checking their own status, OR
-        //    b) User is an admin
-        if (requestingUserEmail !== targetEmail && requestingUser?.role !== 'admin') {
-          return res.status(403).json({ message: 'Unauthorized access' });
-        }
+    //     // 4. Authorization check - only allow if:
+    //     //    a) User is checking their own status, OR
+    //     //    b) User is an admin
+    //     if (requestingUserEmail !== targetEmail && requestingUser?.role !== 'admin') {
+    //       return res.status(403).json({ message: 'Unauthorized access' });
+    //     }
     
-        // 5. Proceed with the admin check
-        const targetUser = await userCollection.findOne({ email: targetEmail });
-        res.json({ 
-          admin: targetUser?.role === 'admin',
-          email: targetEmail
-        });
+    //     // 5. Proceed with the admin check
+    //     const targetUser = await userCollection.findOne({ email: targetEmail });
+    //     res.json({ 
+    //       admin: targetUser?.role === 'admin',
+    //       email: targetEmail
+    //     });
     
-      } catch (err) {
-        console.error('Admin check error:', err);
-        res.status(500).json({ message: 'Server error' });
-      }
-    });
+    //   } catch (err) {
+    //     console.error('Admin check error:', err);
+    //     res.status(500).json({ message: 'Server error' });
+    //   }
+    // });
+
+     // get the user role
+  app.get('/users/admin/:email',  async(req,res)=>{
+       const email = req.params.email;
+      //  if (email !== req.decoded.email) {
+      //    return res.status(403).send({message: 'unauthorized access'})
+         
+      //  }
+       const query = {email: email};
+       const user = await userCollection.findOne(query);
+       let admin = false;
+       if (user) {
+         admin = user?.role=== 'admin';
+         
+       }
+       res.send({ admin})
+ 
+     })
 
 
 
     // save a product in database
-    app.post('/products',verifyToken, async(req,res)=>{
+    app.post('/products', async(req,res)=>{
       const productData = req.body
        // Convert price to number (float)
     if (productData.price) {
@@ -218,18 +265,18 @@ async function run() {
 
     
     // get all product data save by admin
-    app.get('/productsData/:email', verifyToken, async(req,res)=>{
-      const tokenEmail = req.user.email
+    app.get('/productsData/:email', async(req,res)=>{
+      // const tokenEmail = req.user.email
       const email = req.params.email
-      if(tokenEmail!==email){
-        return res.status(403).send({message:"forbidden access"})
-      }
+      // if(tokenEmail!==email){
+      //   return res.status(403).send({message:"forbidden access"})
+      // }
       const query = {adminEmail : email}
       const result =await productCollection.find(query).toArray()
       res.send(result)
     })
     // delete a product data from db
-    app.delete('/products/:id', async(req,res)=>{
+    app.delete('/products/:id',async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
       
@@ -237,7 +284,7 @@ async function run() {
       res.send(result)
     })
     //  update a product data 
-    app.put('/products/:id',verifyToken, async(req,res)=>{
+    app.put('/products/:id',async(req,res)=>{
       const id = req.params.id
       const productData = req.body
       const query = {_id : new ObjectId(id)}
@@ -293,31 +340,31 @@ async function run() {
     })
 
     // get all order of a user from db
-    app.get('/order/:email',verifyToken, async(req,res)=>{
-      const tokenEmail = req.user.email
+    app.get('/order/:email',async(req,res)=>{
+      // const tokenEmail = req.user.email
       const email = req.params.email
-       if(tokenEmail!==email){
-        return res.status(403).send({message:"forbidden access"})
-      }
+      //  if(tokenEmail!==email){
+      //   return res.status(403).send({message:"forbidden access"})
+      // }
       const query = {'customerInfo.email' : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
 
     // get all order of a user for a admin from db
-    app.get('/orderAdmin/:email', verifyToken, async(req,res)=>{
-       const tokenEmail = req.user.email
+    app.get('/orderAdmin/:email',async(req,res)=>{
+      //  const tokenEmail = req.user.email
       const email = req.params.email
-      if(tokenEmail!==email){
-        return res.status(403).send({message:"forbidden access"})
-      }
+      // if(tokenEmail!==email){
+      //   return res.status(403).send({message:"forbidden access"})
+      // }
       const query = { 'products.owner' : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
     // get all single order data
 
-    app.get('/orderData/:id',  async(req,res)=>{
+    app.get('/orderData/:id', async(req,res)=>{
       const id= req.params.id
       const query = {_id: new ObjectId (id)}
       console.log(query)
@@ -325,7 +372,7 @@ async function run() {
       res.send(result)
     })
     //  update a order data 
-    app.patch('/orderData/:id', async(req,res)=>{
+    app.patch('/orderData/:id',async(req,res)=>{
       const id = req.params.id
       const { name, phone, address, city, zipCode } = req.body;
       const query = {_id: new ObjectId(id)}
@@ -344,7 +391,7 @@ async function run() {
     })
 
     // delete a order data from db
-    app.delete('/orderData/:id', async(req,res)=>{
+    app.delete('/orderData/:id',async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
       
@@ -353,7 +400,7 @@ async function run() {
     })
 
     // update status
-    app.patch('/order/:id', verifyToken, async (req,res)=>{
+    app.patch('/order/:id',async (req,res)=>{
       const id=req.params.id
       const { status } = req.body
       const query = {_id: new ObjectId(id)}
@@ -427,7 +474,7 @@ async function run() {
     })
 
     // added a cart product in database
-    app.post('/cart',verifyToken, async(req,res)=>{
+    app.post('/cart',async(req,res)=>{
       const cartData = req.body
       // check if the order is duplicate
       const query={
@@ -443,12 +490,12 @@ async function run() {
       res.send(result)
     })
     // get all cart product of a user from db
-    app.get('/cart/:email',verifyToken, async(req,res)=>{
-      const tokenEmail = req.user.email
+    app.get('/cart/:email',async(req,res)=>{
+      // const tokenEmail = req.user.email
       const email = req.params.email
-       if(tokenEmail!==email){
-        return res.status(403).send({message:"forbidden access"})
-      }
+      //  if(tokenEmail!==email){
+      //   return res.status(403).send({message:"forbidden access"})
+      // }
       const query = {saverEmail : email}
       const result =await cartCollection.find(query).toArray()
       res.send(result)
@@ -463,7 +510,7 @@ async function run() {
     })
      // get all single cart data
 
-     app.get('/cartData/:id', verifyToken, async(req,res)=>{
+     app.get('/cartData/:id', async(req,res)=>{
       const id= req.params.id
       const query = {_id: new ObjectId (id)}
       console.log(query)
@@ -471,7 +518,7 @@ async function run() {
       res.send(result)
     })
     // PATCH /cartData/:id - Update cart item quantity
-app.patch('/cartData/:id', verifyToken, async (req, res) => {
+app.patch('/cartData/:id', async (req, res) => {
   try {
       const id = req.params.id;
       const { quantity } = req.body;
@@ -496,18 +543,18 @@ app.patch('/cartData/:id', verifyToken, async (req, res) => {
   }
 });
 // get all cart data for checkout of a user from db
-app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
-  const tokenEmail = req.user.email
+app.get('/checkOutData/:email',async(req,res)=>{
+  // const tokenEmail = req.user.email
   const email = req.params.email
-   if(tokenEmail!==email){
-    return res.status(403).send({message:"forbidden access"})
-  }
+  //  if(tokenEmail!==email){
+  //   return res.status(403).send({message:"forbidden access"})
+  // }
   const query = {saverEmail : email}
   const result =await cartCollection.find(query).toArray()
   res.send(result)
 })
 // add a wish listed product in database
-    app.post('/wish',verifyToken, async(req,res)=>{
+    app.post('/wish',async(req,res)=>{
       const wishData = req.body
       // check if the order is duplicate
       const query={
@@ -523,7 +570,7 @@ app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
       res.send(result)
     })
     // add a listed product in cart
-    app.post('/wishData', verifyToken,async (req, res) => {
+    app.post('/wishData',async (req, res) => {
 
       try {
         // 1. Add to cart
@@ -545,12 +592,12 @@ app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
       }
     });
     // get all wish listed product of a user from db
-    app.get('/wish/:email',verifyToken, async(req,res)=>{
-      const tokenEmail = req.user.email
+    app.get('/wish/:email',async(req,res)=>{
+      // const tokenEmail = req.user.email
       const email = req.params.email
-       if(tokenEmail!==email){
-        return res.status(403).send({message:"forbidden access"})
-      }
+      //  if(tokenEmail!==email){
+      //   return res.status(403).send({message:"forbidden access"})
+      // }
       const query = {listerEmail : email}
       const result =await wishCollection.find(query).toArray()
       res.send(result)
@@ -564,7 +611,7 @@ app.get('/checkOutData/:email',verifyToken, async(req,res)=>{
       res.send(result)
     })
     // add a review in database
-    app.post('/review',verifyToken, async(req,res)=>{
+    app.post('/review',async(req,res)=>{
       const reviewData = req.body
       // check if the review is duplicate
       const query={
@@ -614,7 +661,7 @@ app.post('/create-payment-intent',async(req,res)=>{
 })
 // save payment
 
-app.post('/payments', async(req,res)=>{
+app.post('/payments',async(req,res)=>{
   const payment=req.body
   const paymentResult=await paymentCollection.insertOne(payment)
   console.log(payment);
@@ -622,12 +669,12 @@ app.post('/payments', async(req,res)=>{
   res.send(paymentResult)
 })
  // get all payment data of a user for a admin from db
-    app.get('/payData/:email', verifyToken, async(req,res)=>{
-       const tokenEmail = req.user.email
+    app.get('/payData/:email', async(req,res)=>{
+      //  const tokenEmail = req.user.email
       const email = req.params.email
-      if(tokenEmail!==email){
-        return res.status(403).send({message:"forbidden access"})
-      }
+      // if(tokenEmail!==email){
+      //   return res.status(403).send({message:"forbidden access"})
+      // }
      // Find payments where user is in the admin array
     const result = await paymentCollection.find({ 
       admin: { $in: [email] } 
@@ -637,7 +684,7 @@ app.post('/payments', async(req,res)=>{
     })
 
 // delete payment data
-app.delete('/payData/:id', async(req,res)=>{
+app.delete('/payData/:id',async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
       
@@ -646,12 +693,12 @@ app.delete('/payData/:id', async(req,res)=>{
     })
 
     // get all  payment data for a user
-    app.get('/paymentData/:email',verifyToken, async(req,res)=>{
-      const tokenEmail = req.user.email
+    app.get('/paymentData/:email',async(req,res)=>{
+      // const tokenEmail = req.user.email
       const email = req.params.email
-       if(tokenEmail!==email){
-        return res.status(403).send({message:"forbidden access"})
-      }
+      //  if(tokenEmail!==email){
+      //   return res.status(403).send({message:"forbidden access"})
+      // }
       const query = {email : email}
       const result =await paymentCollection.find(query).toArray()
       res.send(result)
@@ -664,14 +711,14 @@ app.delete('/payData/:id', async(req,res)=>{
     });
 
     // get all contact data
-    app.get('/contacts', verifyToken, async(req,res)=>{
+    app.get('/contacts', async(req,res)=>{
       const result = await contactCollection.find().toArray()
 
       res.send(result)
     })
 
      // delete a contact data from db
-    app.delete('/contacts/:id', verifyToken, async(req,res)=>{
+    app.delete('/contacts/:id', async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
       
