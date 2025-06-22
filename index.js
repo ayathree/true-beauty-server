@@ -158,6 +158,12 @@ async function run() {
     user: { ...userWithDefaults, _id: result.insertedId }
   });
 });
+
+ app.get('/users', async(req,res)=>{
+      const result = await userCollection.find().toArray()
+
+      res.send(result)
+    })
     // make an user an admin
      app.patch('/users/admin/:id', async (req,res)=>{
       const id = req.params.id;
