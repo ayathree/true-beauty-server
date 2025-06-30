@@ -316,8 +316,6 @@ async function run() {
       console.log(size,page);
       let query={
         productName: {$regex: search, $options: 'i'}
-        
-
       }
       if (filter) query.category = filter
       if(filterBrand) query.brand = filterBrand
@@ -382,6 +380,7 @@ async function run() {
       const result =await cartCollection.deleteOne(query)
       res.send(result)
     })
+
      // get all single cart data
 
      app.get('/cartData/:id', async(req,res)=>{
