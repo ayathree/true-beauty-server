@@ -22,26 +22,7 @@ const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
  app.use(express.json())
  app.use(cookieParser())
 
- // verifyToken middleware
-//  const verifyToken=(req,res,next)=>{
-//     const token = req.cookies?.token
-//          if(!token) return res.status(401).send({message:'unauthorized access'})
-//            if(token){
-//              jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
-//                if(err){
-//                  console.log(err)
-//                  return res.status(401).send({message:"unauthorized access"})
-//                }
-//                console.log(decoded)
-//                req.user=decoded
-//                next()
-//              })
-//            }
-//  }
-
-
  
-
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.ycbv1lf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -66,56 +47,6 @@ async function run() {
     const paymentCollection = client.db('trueBeauty').collection('payments')
     const contactCollection = client.db('trueBeauty').collection('contacts')
 
-
-    
-        // jwt token
-        // app.post('/jwt', async(req,res)=>{
-        //   const user = req.body
-        //   const token = jwt.sign(user,process.env.ACCESS_TOKEN_SECRET,{
-        //     expiresIn:'365d'
-        //   })
-        //   res.cookie('token', token,{
-        //     httpOnly: true,
-        //     secure: process.env.NODE_ENV === 'production',
-        //     sameSite:process.env.NODE_ENV === 'production'?'none':'strict',
-        //   }).send({success:true})
-        // })
-    
-        // clear cookie
-        //  app.get('/logout', async(req,res)=>{
-        //   res.clearCookie('token', {
-        //     httpOnly: true,
-        //     secure: process.env.NODE_ENV === 'production',
-        //     sameSite: process.env.NODE_ENV === 'production'?'none':'strict',
-        //     maxAge:0,
-        //   }).send({success: true})
-        // })
-
-    // // verify jwt middleware
-    // const verifyToken = (req,res,next)=>{
-    //   const token = req.cookies?.token
-    //   if(!token) return res.status(401).send({message:'unauthorized access'})
-    //     if(token){
-    //       jwt.verify(token, process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
-    //         if(err){
-    //           console.log(err)
-    //           return res.status(401).send({message:"unauthorized access"})
-    //         }
-    //         console.log(decoded)
-    //         req.user=decoded
-    //         next()
-    //       })
-    //     }
-    // }
-
-    // Add admin verification middleware
-    // const verifyAdmin = async (req, res, next) => {
-    //   const requester = await userCollection.findOne({ _id: req.decoded.userId });
-    //   if (!requester || requester.role !== 'admin') {
-    //     return res.status(403).json({ message: 'Admin access required' });
-    //   }
-    //   next();
-    // };
 
 
     // save a user in db
@@ -176,45 +107,11 @@ async function run() {
       const result = await userCollection.updateOne(filter, updateDoc);
       res.send(result)
     }) 
-    // // admin route
-    // app.get('/users/admin/:email', verifyToken, async (req, res) => {
-    //   try {
-    //     // 1. Get the requesting user's email from the verified token
-    //     const requestingUserEmail = req.user.email; // From verifyToken middleware
-        
-    //     // 2. Get the target email from params
-    //     const targetEmail = req.params.email;
     
-    //     // 3. Find the requesting user in database
-    //     const requestingUser = await userCollection.findOne({ email: requestingUserEmail });
-        
-    //     // 4. Authorization check - only allow if:
-    //     //    a) User is checking their own status, OR
-    //     //    b) User is an admin
-    //     if (requestingUserEmail !== targetEmail && requestingUser?.role !== 'admin') {
-    //       return res.status(403).json({ message: 'Unauthorized access' });
-    //     }
-    
-    //     // 5. Proceed with the admin check
-    //     const targetUser = await userCollection.findOne({ email: targetEmail });
-    //     res.json({ 
-    //       admin: targetUser?.role === 'admin',
-    //       email: targetEmail
-    //     });
-    
-    //   } catch (err) {
-    //     console.error('Admin check error:', err);
-    //     res.status(500).json({ message: 'Server error' });
-    //   }
-    // });
 
      // get the user role
   app.get('/users/admin/:email',  async(req,res)=>{
        const email = req.params.email;
-      //  if (email !== req.decoded.email) {
-      //    return res.status(403).send({message: 'unauthorized access'})
-         
-      //  }
        const query = {email: email};
        const user = await userCollection.findOne(query);
        let admin = false;
@@ -274,9 +171,6 @@ async function run() {
     app.get('/productsData/:email', async(req,res)=>{
       // const tokenEmail = req.user.email
       const email = req.params.email
-      // if(tokenEmail!==email){
-      //   return res.status(403).send({message:"forbidden access"})
-      // }
       const query = {adminEmail : email}
       const result =await productCollection.find(query).toArray()
       res.send(result)
@@ -285,7 +179,6 @@ async function run() {
     app.delete('/products/:id',async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
-      
       const result =await productCollection.deleteOne(query)
       res.send(result)
     })
@@ -347,11 +240,7 @@ async function run() {
 
     // get all order of a user from db
     app.get('/order/:email',async(req,res)=>{
-      // const tokenEmail = req.user.email
       const email = req.params.email
-      //  if(tokenEmail!==email){
-      //   return res.status(403).send({message:"forbidden access"})
-      // }
       const query = {'customerInfo.email' : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
@@ -359,17 +248,13 @@ async function run() {
 
     // get all order of a user for a admin from db
     app.get('/orderAdmin/:email',async(req,res)=>{
-      //  const tokenEmail = req.user.email
       const email = req.params.email
-      // if(tokenEmail!==email){
-      //   return res.status(403).send({message:"forbidden access"})
-      // }
       const query = { 'products.owner' : email}
       const result =await orderCollection.find(query).toArray()
       res.send(result)
     })
-    // get all single order data
 
+    // get all single order data
     app.get('/orderData/:id', async(req,res)=>{
       const id= req.params.id
       const query = {_id: new ObjectId (id)}
@@ -400,7 +285,6 @@ async function run() {
     app.delete('/orderData/:id',async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
-      
       const result =await orderCollection.deleteOne(query)
       res.send(result)
     })
@@ -417,16 +301,6 @@ async function run() {
       }
       }
       const result = await orderCollection.updateOne(query, updateDoc)
-    //   const order = await orderCollection.findOne(query);
-    //   // 5. Delete cart items when status changes to specific values
-    // if (['Shipped', 'Delivered'].includes(status)) {
-    //   const productIds = order.products.map(p => p.id);
-      
-    //   await cartCollection.deleteMany({
-    //     'savedProductId': { $in: productIds },
-    //     'saverEmail': order.customerInfo.email
-    //   });
-    // }
       res.send(result)
     })
 
@@ -469,8 +343,6 @@ async function run() {
 
       let query={
         productName: {$regex: search, $options: 'i'}
-        
-
       }
       if (filter) query.category = filter
       if(filterBrand) query.brand = filterBrand
@@ -495,13 +367,10 @@ async function run() {
       const result = await cartCollection.insertOne(cartData) 
       res.send(result)
     })
+
     // get all cart product of a user from db
     app.get('/cart/:email',async(req,res)=>{
-      // const tokenEmail = req.user.email
       const email = req.params.email
-      //  if(tokenEmail!==email){
-      //   return res.status(403).send({message:"forbidden access"})
-      // }
       const query = {saverEmail : email}
       const result =await cartCollection.find(query).toArray()
       res.send(result)
@@ -510,7 +379,6 @@ async function run() {
     app.delete('/cartData/:id', async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
-      
       const result =await cartCollection.deleteOne(query)
       res.send(result)
     })
@@ -523,6 +391,7 @@ async function run() {
       const result = await cartCollection.findOne(query)
       res.send(result)
     })
+
     // PATCH /cartData/:id - Update cart item quantity
 app.patch('/cartData/:id', async (req, res) => {
   try {
@@ -548,17 +417,15 @@ app.patch('/cartData/:id', async (req, res) => {
       res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 // get all cart data for checkout of a user from db
 app.get('/checkOutData/:email',async(req,res)=>{
-  // const tokenEmail = req.user.email
   const email = req.params.email
-  //  if(tokenEmail!==email){
-  //   return res.status(403).send({message:"forbidden access"})
-  // }
   const query = {saverEmail : email}
   const result =await cartCollection.find(query).toArray()
   res.send(result)
 })
+
 // add a wish listed product in database
     app.post('/wish',async(req,res)=>{
       const wishData = req.body
@@ -588,7 +455,7 @@ app.get('/checkOutData/:email',async(req,res)=>{
     
         // 2. Delete from wishlist (simple version)
         await wishCollection.deleteOne({
-          _id: new ObjectId(req.body.savedProductId), // Assume frontend sends wishItemId
+          _id: new ObjectId(req.body.savedProductId), 
           listerEmail: req.body.saverEmail // Matches cart item's saverEmail
         });
     
@@ -597,13 +464,10 @@ app.get('/checkOutData/:email',async(req,res)=>{
         res.status(500).send('Error');
       }
     });
+
     // get all wish listed product of a user from db
     app.get('/wish/:email',async(req,res)=>{
-      // const tokenEmail = req.user.email
       const email = req.params.email
-      //  if(tokenEmail!==email){
-      //   return res.status(403).send({message:"forbidden access"})
-      // }
       const query = {listerEmail : email}
       const result =await wishCollection.find(query).toArray()
       res.send(result)
@@ -612,7 +476,6 @@ app.get('/checkOutData/:email',async(req,res)=>{
     app.delete('/wishData/:id', async(req,res)=>{
       const id = req.params.id
       const query = {_id : new ObjectId(id)}
-      
       const result =await wishCollection.deleteOne(query)
       res.send(result)
     })
@@ -674,13 +537,10 @@ app.post('/payments',async(req,res)=>{
    
   res.send(paymentResult)
 })
+
  // get all payment data of a user for a admin from db
     app.get('/payData/:email', async(req,res)=>{
-      //  const tokenEmail = req.user.email
       const email = req.params.email
-      // if(tokenEmail!==email){
-      //   return res.status(403).send({message:"forbidden access"})
-      // }
      // Find payments where user is in the admin array
     const result = await paymentCollection.find({ 
       admin: { $in: [email] } 
@@ -700,11 +560,7 @@ app.delete('/payData/:id',async(req,res)=>{
 
     // get all  payment data for a user
     app.get('/paymentData/:email',async(req,res)=>{
-      // const tokenEmail = req.user.email
       const email = req.params.email
-      //  if(tokenEmail!==email){
-      //   return res.status(403).send({message:"forbidden access"})
-      // }
       const query = {email : email}
       const result =await paymentCollection.find(query).toArray()
       res.send(result)
