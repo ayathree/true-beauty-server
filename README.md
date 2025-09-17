@@ -1,4 +1,4 @@
-# True Beauty 
+# True Beauty (e-commerce site with AI-powered voice assistant )
 
 This website is an e-commerce site for cosmetics with an interactive AI-powered voice command assistant allowing for hands-free navigation, where a customer can find many cosmetics from different kinds and categories.
 
