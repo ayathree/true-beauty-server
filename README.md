@@ -1,6 +1,6 @@
 # True Beauty 
 
-This website is a e-commerce site for cosmetics, where a customer can find many cosmetics from different kinds and categories.
+This website is an e-commerce site for cosmetics with an interactive AI-powered voice command assistant allowing for hands-free navigation, where a customer can find many cosmetics from different kinds and categories.
 
 ---
 
@@ -16,6 +16,7 @@ This website is a e-commerce site for cosmetics, where a customer can find many 
 - **Backend:** Node.js / Express / Firebase
 - **Database:** MongoDB
 - **Hosting:** Firebase / Vercel 
+- **Voice Interface:** Web Speech API (SpeechSynthesisUtterance, SpeechRecognition)
 - **Other Tools:**  React Router / Stripe / Axios / tanstack query / date-fns / react-datepicker / react-hot-toast / react-icons / react-rating-stars-component / react-slick / react-tabs / sweetalert2 / swiper / cors / cookie-parser / dotenv / lodash
 
 ---
@@ -25,6 +26,8 @@ This website is a e-commerce site for cosmetics, where a customer can find many 
 ### 🧑‍💼 User Features
 
 - 🔐 **Authentication System** – Secure Signup/Login(Forget Password System) with protected routes
+- 🎤 **Voice Command Assistant** - Navigate the site hands-free using voice commands (e.g., "Cart", "Shop").
+- 🔊 **Audio Feedback** - The assistant provides clear audio confirmation (e.g., "Opening your cart page") for each action, enhancing user interaction.
 - 🛍️ **Shop Page with Advanced Filtering** – Filter by name, category, brand, price.
 - 🛒 **Cart System (MyCart)** – Add, remove, and update(increase/decrease) product quantities
 - ❤️ **Wishlist** – Save favorite products to view or buy later
@@ -45,7 +48,8 @@ This website is a e-commerce site for cosmetics, where a customer can find many 
 ---
 
 ### ⚙️ System Features
-- 🌐 **Protected Routes** – Role-based route protection for User and Admin  
+- 🌐 **Protected Routes** – Role-based route protection for User and Admin 
+- 🗣️ **Voice-Enabled Interaction** -  Built-in support for speech synthesis and recognition for an accessible user experience. 
 - 📤 **Image Uploading** – For product listings and user profiles  
 - 💬 **Review System** - Customer can rate and give review for a product
 - 🧩 **Reusable Components** – Clean architecture and modular React components    
@@ -53,6 +57,19 @@ This website is a e-commerce site for cosmetics, where a customer can find many 
 - 🧪 **User-Friendly Interface** – Intuitive layout for seamless interaction
 
 ---
+
+### 🎤 Voice Command Assistant
+An interactive AI-powered voice command assistant is integrated into the site, providing a hands-free and accessible navigation experience for all logged-in users.
+- **How to Use:**
+- Click the microphone assistant button on the screen.
+- When prompted, speak a navigation command clearly.
+- The assistant will provide audio confirmation (e.g., "Opening your cart page") and redirect you.
+- **Available Commands:**
+- "Shop"; "Collection"; "Store"; "Open Shop Page"; "Open Cart Page"
+- **Technology** 
+- This feature is built using the modern Web Speech API, including **Audio**, **SpeechSynthesisUtterance**, **window.speechSynthesis**, and cross-browser compatible **SpeechRecognition**.
+
+
 
 ## 🧰 Getting Started
 
